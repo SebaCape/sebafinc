@@ -11,10 +11,10 @@ class Strategy:
 
     def moving_averages(self):
         #Calculate small moving average & large moving average with SQL query
-        query = "SELECT Date, Close_AAPL, AVG(Close_AAPL)" \
-        "OVER (ORDER BY Date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS SMA_5, AVG(Close_AAPL) " \
-        "OVER (ORDER BY Date ROWS BETWEEN 19 PRECEDING AND CURRENT ROW) AS SMA_20 " \
-        "FROM prices"
+        query = f"SELECT Date, Close_AAPL, AVG(Close_AAPL)" \
+        f"OVER (ORDER BY Date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS SMA_5, AVG(Close_AAPL) " \
+        f"OVER (ORDER BY Date ROWS BETWEEN 19 PRECEDING AND CURRENT ROW) AS SMA_20 " \
+        f"FROM prices"
         df = self.conn.execute(query).fetchdf()
 
         #Detect crossover and append buy/sell orders to the orders array

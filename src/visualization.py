@@ -25,24 +25,38 @@ orders = strategy.moving_averages()
 
 print(orders)
 
-#Plot apple prices
+#Ensure Date column in orders array is datetime type, and merge with price data for plotting
+orders['Date'] = pd.to_datetime(orders['Date'])
+orders_df = pd.DataFrame(orders)
+orders_plot = df.loc[df['Date'].isin(orders_df['Date']), ['Date', 'Close_AAPL']]
+orders_plot = orders_plot.merge(orders_df, on='Date', how='left')
+
+#Deduce buy and sell orders for plotting
+buys = orders_plot[orders_plot['Action'] == 'Buy']
+sells = orders_plot[orders_plot['Action'] == 'Sell']
+
+#Plot apple prices & buy/sell orders
 plt.figure(facecolor = "black")
+plt.plot(x, df['Close_AAPL'], color = "#E4E9B8", zorder = 1)
+plt.scatter(buys['Date'], buys['Close_AAPL'], marker = '^', color = 'green', s = 80, label = 'Buy', zorder = 2)
+plt.scatter(sells['Date'], sells['Close_AAPL'], marker = 'v', color = 'red', s = 80, label = 'Sell', zorder = 2)
 
-
-plt.plot(x, df['Close_AAPL'], color = "#E4E9B8")
-plt.title("AAPL Prices from 2023-2024", color = "white")
-plt.xlabel("Date", color = "white")
-plt.ylabel("Close Price (USD$)", color = "white")
+#Labeling and layout styling
+plt.title("Backtested AAPL Prices from 2023-2024", color = "white", fontname = "serif")
+plt.xlabel("Date", color = "white", fontname = "serif")
+plt.ylabel("Close Price (USD$)", color = "white", fontname = "serif")
 plt.margins(x = 0)
-plt.xticks(rotation = 45, color = "white")
-plt.yticks(np.arange(100, 260, 10), color = "white")
+plt.xticks(rotation = 45, color = "white", fontname = "serif")
+plt.yticks(np.arange(100, 260, 10), color = "white", fontname = "serif")
+plt.rcParams['font.family'] = "serif"
 plt.tight_layout()
 
-
+#Axis Coloring
 ax = plt.gca()
 ax.set_facecolor("black")
 for spine in ax.spines.values():
     spine.set_color('white')
 ax.tick_params(axis = "both", color = "white")
+ax.legend()
 
 plt.show()
