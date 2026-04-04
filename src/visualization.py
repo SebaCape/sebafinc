@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 import duckdb
 
 #Establish db connection
@@ -9,23 +10,32 @@ conn = duckdb.connect('market.db')
 query = "SELECT * FROM prices"
 df = pd.read_sql(query, conn)
 
+print(df.head())
+
 #Use the stored Date column for the x-axis if available
 if 'Date' in df.columns:
     x = pd.to_datetime(df['Date'])
 else:
     x = pd.to_datetime(df.index)
 
-#Select the Close column
-close_cols = [col for col in df.columns if 'Close' in str(col)]
-if not close_cols:
-    raise KeyError('No Close column found in prices table: ' + ', '.join(map(str, df.columns)))
-close_col = close_cols[0]
-
 #Plot apple prices
-plt.plot(x, df[close_col])
-plt.title("AAPL Prices from 2023-2024")
-plt.xlabel("Date")
-plt.ylabel("Close Price")
-plt.ylim(bottom = 0)
+plt.figure(facecolor = "black")
+
+
+plt.plot(x, df['Close_AAPL'], color = "#E4E9B8")
+plt.title("AAPL Prices from 2023-2024", color = "white")
+plt.xlabel("Date", color = "white")
+plt.ylabel("Close Price (USD$)", color = "white")
+plt.margins(x = 0)
+plt.xticks(rotation = 45, color = "white")
+plt.yticks(np.arange(100, 260, 10), color = "white")
 plt.tight_layout()
+
+
+ax = plt.gca()
+ax.set_facecolor("black")
+for spine in ax.spines.values():
+    spine.set_color('white')
+ax.tick_params(axis = "both", color = "white")
+
 plt.show()
