@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import duckdb
+import backtest
 
 #Establish db connection
 conn = duckdb.connect('market.db')
@@ -17,6 +18,12 @@ if 'Date' in df.columns:
     x = pd.to_datetime(df['Date'])
 else:
     x = pd.to_datetime(df.index)
+
+#Gather numpy arrays of orders from backtest module
+strategy = backtest.Strategy('market.db')
+orders = strategy.moving_averages()
+
+print(orders)
 
 #Plot apple prices
 plt.figure(facecolor = "black")
