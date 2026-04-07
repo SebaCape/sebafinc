@@ -5,24 +5,25 @@ import datetime
 
 class Strategy:
     def __init__(self, db_path):
-        #initialize with database connection and numpy orders array
+        #initialize with database connection
         self.conn = duckdb.connect(db_path)
-        self.orders = np.array([], dtype=[('Date', 'datetime64[ns]'), ('Action', 'U4')])
+        self.orders = pd.DataFrame()
 
-    def moving_averages(self):
-        #Calculate small moving average & large moving average with SQL query
+    def moving_averages(self, short_window = 5, long_window = 20):
+        #Calculate short moving average & long moving average with SQL query
         query = f"SELECT Date, Close_AAPL, AVG(Close_AAPL)" \
-        f"OVER (ORDER BY Date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS SMA_5, AVG(Close_AAPL) " \
-        f"OVER (ORDER BY Date ROWS BETWEEN 19 PRECEDING AND CURRENT ROW) AS SMA_20 " \
+        f"OVER (ORDER BY Date ROWS BETWEEN {short_window - 1} PRECEDING AND CURRENT ROW) AS SMA_{short_window}, AVG(Close_AAPL) " \
+        f"OVER (ORDER BY Date ROWS BETWEEN {long_window - 1} PRECEDING AND CURRENT ROW) AS SMA_{long_window} " \
         f"FROM prices"
         df = self.conn.execute(query).fetchdf()
 
-        #Detect crossover and append buy/sell orders to the orders array
-        for i in range(1, len(df)):
-            if df['SMA_5'][i] > df['SMA_20'][i] and df['SMA_5'][i-1] <= df['SMA_20'][i-1]:
-                self.orders = np.append(self.orders, np.array([(df['Date'][i], 'Buy')], dtype=self.orders.dtype))
-            elif df['SMA_5'][i] < df['SMA_20'][i] and df['SMA_5'][i-1] >= df['SMA_20'][i-1]:
-                self.orders = np.append(self.orders, np.array([(df['Date'][i], 'Sell')], dtype=self.orders.dtype))
+        #Detect crossover via pandas vectorization, use to populate buy and sell orders
+        cross_up   = (df['SMA_5'] > df['SMA_20']) & (df['SMA_5'].shift(1) <= df['SMA_20'].shift(1))
+        cross_down = (df['SMA_5'] < df['SMA_20']) & (df['SMA_5'].shift(1) >= df['SMA_20'].shift(1))
+    
+        buys  = df[cross_up][['Date']].assign(Action='Buy')
+        sells = df[cross_down][['Date']].assign(Action='Sell')
+        self.orders = pd.concat([buys, sells]).sort_values('Date').reset_index(drop=True)
 
         #Return array of orders with Date and Action (Buy/Sell)
         return self.orders
