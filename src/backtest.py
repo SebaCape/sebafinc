@@ -9,6 +9,11 @@ class Strategy:
         self.conn = duckdb.connect(db_path)
         self.orders = pd.DataFrame()
 
+    def close_connection(self):
+        self.conn.close()
+        print("DB connection closed.")
+
+
     def moving_averages(self, short_window = 5, long_window = 20):
         #Calculate short moving average & long moving average with SQL query
         query = f"SELECT Date, Close_AAPL, AVG(Close_AAPL)" \

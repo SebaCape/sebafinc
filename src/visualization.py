@@ -35,6 +35,9 @@ orders_plot = orders_plot.merge(orders_df, on='Date', how='left')
 buys = orders_plot[orders_plot['Action'] == 'Buy']
 sells = orders_plot[orders_plot['Action'] == 'Sell']
 
+#Close db when done transacting
+strategy.close_connection()
+
 #Plot apple prices & buy/sell orders
 plt.figure(facecolor = "black")
 plt.plot(x, df['Close_AAPL'], color = "#E4E9B8", zorder = 1)
