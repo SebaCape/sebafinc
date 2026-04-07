@@ -28,15 +28,18 @@ print(orders)
 #Ensure Date column in orders array is datetime type, and merge with price data for plotting
 orders['Date'] = pd.to_datetime(orders['Date'])
 orders_df = pd.DataFrame(orders)
-orders_plot = df.loc[df['Date'].isin(orders_df['Date']), ['Date', 'Close_AAPL']]
-orders_plot = orders_plot.merge(orders_df, on='Date', how='left')
 
 #Deduce buy and sell orders for plotting
-buys = orders_plot[orders_plot['Action'] == 'Buy']
-sells = orders_plot[orders_plot['Action'] == 'Sell']
+buys  = orders[orders['Action'] == 'Buy']
+sells = orders[orders['Action'] == 'Sell']
 
 #Close db when done transacting
 strategy.close_connection()
+
+#P&L initialization and reporting
+portfolio = backtest.Portfolio()
+portfolio.pnl_calc(orders)
+portfolio.show_metrics()
 
 #Plot apple prices & buy/sell orders
 plt.figure(facecolor = "black")
