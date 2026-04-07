@@ -19,7 +19,7 @@ if 'Date' in df.columns:
 else:
     x = pd.to_datetime(df.index)
 
-#Gather numpy arrays of orders from backtest module
+#Gather dataframe of orders from backtest module
 strategy = backtest.Strategy('market.db')
 orders = strategy.moving_averages()
 
