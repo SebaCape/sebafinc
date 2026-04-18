@@ -39,7 +39,7 @@ else:
 
 #Gather dataframe of orders from backtest module
 strategy = backtest.Strategy('market.db')
-orders = strategy.moving_averages(short_window=50, long_window=150, price_col=price_col)
+orders = strategy.moving_averages(short_window=50, long_window=200, price_col=price_col)
 
 print(orders)
 

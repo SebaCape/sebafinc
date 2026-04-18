@@ -12,7 +12,7 @@ class Strategy:
         self.conn.close()
         print("DB connection closed.")
 
-    def moving_averages(self, short_window = 5, long_window = 20, price_col = 'Close'):
+    def moving_averages(self, short_window = 10, long_window = 20, price_col = 'Close'):
         #Calculate short moving average & long moving average with SQL query
         query = f"SELECT Date, {price_col}, AVG({price_col})" \
         f"OVER (ORDER BY Date ROWS BETWEEN {short_window - 1} PRECEDING AND CURRENT ROW) AS SMA_{short_window}, AVG({price_col}) " \
@@ -40,13 +40,42 @@ class Portfolio:
         self.percent_gain = 0.0
 
     def pnl_calc(self, order_list, price_col='Close'):
+        #Sort orders by date to ensure chronological processing
+        order_list = order_list.sort_values('Date').reset_index(drop=True)
+        
         self.buy_orders = (order_list['Action'] == 'Buy').sum()
         self.sell_orders = (order_list['Action'] == 'Sell').sum()
-        #TODO: Optimize profit calculator to only include completely executed orders (joint buys and sells)
-        self.total_profit = round((order_list.loc[order_list['Action'] == 'Sell', price_col].sum() - order_list.loc[order_list['Action'] == 'Buy', price_col].sum()), 2)
-
-        total_buy_value = order_list.loc[order_list['Action'] == 'Buy', price_col].sum()
-        self.percent_gain = (self.total_profit / total_buy_value) * 100 if total_buy_value > 0 else 0.0
+        
+        #Track unmatched buy orders and measure profit only on matched buy/sell pairs
+        unmatched_buys = []
+        self.total_profit = 0.0
+        matched_buy_count = 0
+        matched_sell_count = 0
+        
+        for _, order in order_list.iterrows():
+            if order['Action'] == 'Buy':
+                # Add buy order to unmatched list
+                unmatched_buys.append(order[price_col])
+            elif order['Action'] == 'Sell' and unmatched_buys:
+                # Match with the oldest unmatched buy
+                buy_price = unmatched_buys.pop(0)
+                sell_price = order[price_col]
+                self.total_profit += sell_price - buy_price
+                matched_buy_count += 1
+                matched_sell_count += 1
+        
+        self.total_profit = round(self.total_profit, 2)
+        
+        #Calculate percent gain based on matched buy orders
+        total_buy_value = sum(unmatched_buys) + sum(order_list.loc[order_list['Action'] == 'Buy', price_col][:matched_buy_count])
+        if total_buy_value > 0:
+            self.percent_gain = (self.total_profit / total_buy_value) * 100
+        else:
+            self.percent_gain = 0.0
+        
+        #Update counts to reflect only matched orders for profit calculation
+        self.buy_orders = matched_buy_count
+        self.sell_orders = matched_sell_count
 
     def show_metrics(self):
         print("\n----PNL REPORT----")
