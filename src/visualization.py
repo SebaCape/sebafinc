@@ -47,6 +47,8 @@ plt.plot(x, df['Close_AAPL'], color = "#E4E9B8", zorder = 1)
 plt.scatter(buys['Date'], buys['Close_AAPL'], marker = '^', color = 'green', s = 80, label = 'Buy', zorder = 2)
 plt.scatter(sells['Date'], sells['Close_AAPL'], marker = 'v', color = 'red', s = 80, label = 'Sell', zorder = 2)
 
+#TODO: Add P&L metrics to visualization somewhere
+
 #Labeling and layout styling
 plt.title("Backtested AAPL Prices from 2023-2024", color = "white", fontname = "serif")
 plt.xlabel("Date", color = "white", fontname = "serif")

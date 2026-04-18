@@ -1,7 +1,6 @@
 import duckdb
 import numpy as np
 import pandas as pd
-import datetime
 
 class Strategy:
     def __init__(self, db_path):
@@ -38,16 +37,18 @@ class Portfolio:
         self.buy_orders = 0
         self.sell_orders = 0
         self.total_profit = 0.0
-        self.percent_gain = 0 
+        self.percent_gain = 0.0
 
     def pnl_calc(self, order_list):
         self.buy_orders = (order_list['Action'] == 'Buy').sum()
         self.sell_orders = (order_list['Action'] == 'Sell').sum()
         #TODO: Optimize profit calculator to only include completely executed orders (joint buys and sells)
         self.total_profit = round((order_list.loc[order_list['Action'] == 'Sell', 'Close_AAPL'].sum() - order_list.loc[order_list['Action'] == 'Buy', 'Close_AAPL'].sum()), 2)
-        #TODO: Implement percent gain computation
+
+        total_buy_value = order_list.loc[order_list['Action'] == 'Buy', 'Close_AAPL'].sum()
+        self.percent_gain = (self.total_profit / total_buy_value) * 100 if total_buy_value > 0 else 0.0
 
     def show_metrics(self):
         print("\n----PNL REPORT----")
-        print(f"Buy Orders: {self.buy_orders}\nSell Orders: {self.sell_orders}\nTotal Gross Profit: {self.total_profit}")
-        return (self.buy_orders, self.sell_orders, self.total_profit)
+        print(f"Buy Orders: {self.buy_orders}\nSell Orders: {self.sell_orders}\nTotal Gross Profit: {self.total_profit}\nPercent Gain: {self.percent_gain:.2f}%")
+        return (self.buy_orders, self.sell_orders, self.total_profit, self.percent_gain)
