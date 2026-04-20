@@ -19,7 +19,7 @@ if os.path.exists(CONFIG_FILE):
         end_date = config.get('end_date', 'UNKNOWN')
         db_path = config.get('database', 'UNKNOWN')
 
-# Establish db connection
+#Establish db connection
 conn = duckdb.connect(db_path)
 
 #Query the stored prices table
@@ -37,22 +37,20 @@ if 'Date' in df.columns:
 else:
     x = pd.to_datetime(df.index)
 
-#Gather dataframe of orders from backtest module
-strategy = backtest.Strategy('market.db')
+#Gather dataframe of orders from backtest module, pass the existing connection
+strategy = backtest.Strategy(conn)
 orders = strategy.moving_averages(short_window=50, long_window=200, price_col=price_col)
 
 print(orders)
 
 #Ensure Date column in orders array is datetime type, and merge with price data for plotting
 orders['Date'] = pd.to_datetime(orders['Date'])
-orders_df = pd.DataFrame(orders)
 
 #Deduce buy and sell orders for plotting
 buys  = orders[orders['Action'] == 'Buy']
 sells = orders[orders['Action'] == 'Sell']
 
-#Close db when done transacting
-strategy.close_connection()
+#DB connection remains open for reference, closed after Portfolio operations
 
 #P&L initialization and reporting
 portfolio = backtest.Portfolio()
@@ -97,5 +95,8 @@ for spine in ax.spines.values():
     spine.set_color('white')
 ax.tick_params(axis = "both", color = "white")
 ax.legend()
+
+#Close database connection
+conn.close()
 
 plt.show()

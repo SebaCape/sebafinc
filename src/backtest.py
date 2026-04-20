@@ -3,9 +3,12 @@ import numpy as np
 import pandas as pd
 
 class Strategy:
-    def __init__(self, db_path):
-        #Initialize with database connection
-        self.conn = duckdb.connect(db_path)
+    def __init__(self, db_path_or_conn):
+        #Initialize with database connection (accept either path string or existing connection)
+        if isinstance(db_path_or_conn, str):
+            self.conn = duckdb.connect(db_path_or_conn)
+        else:
+            self.conn = db_path_or_conn
         self.orders = pd.DataFrame()
 
     def close_connection(self):
@@ -14,10 +17,14 @@ class Strategy:
 
     def moving_averages(self, short_window = 10, long_window = 20, price_col = 'Close'):
         #Calculate short moving average & long moving average with SQL query
-        query = f"SELECT Date, {price_col}, AVG({price_col})" \
-        f"OVER (ORDER BY Date ROWS BETWEEN {short_window - 1} PRECEDING AND CURRENT ROW) AS SMA_{short_window}, AVG({price_col}) " \
-        f"OVER (ORDER BY Date ROWS BETWEEN {long_window - 1} PRECEDING AND CURRENT ROW) AS SMA_{long_window} " \
-        f"FROM prices"
+        query = f"""
+            SELECT Date, {price_col},
+                   AVG({price_col}) OVER (ORDER BY Date 
+                       ROWS BETWEEN {short_window - 1} PRECEDING AND CURRENT ROW) AS SMA_{short_window},
+                   AVG({price_col}) OVER (ORDER BY Date 
+                       ROWS BETWEEN {long_window - 1} PRECEDING AND CURRENT ROW) AS SMA_{long_window}
+            FROM prices
+        """
         df = self.conn.execute(query).fetchdf()
 
         #Detect crossover via pandas vectorization, use to populate buy and sell orders
@@ -48,17 +55,19 @@ class Portfolio:
         
         #Track unmatched buy orders and measure profit only on matched buy/sell pairs
         unmatched_buys = []
+        matched_buy_prices = []
         self.total_profit = 0.0
         matched_buy_count = 0
         matched_sell_count = 0
         
         for _, order in order_list.iterrows():
             if order['Action'] == 'Buy':
-                # Add buy order to unmatched list
+                #Add buy order to unmatched list
                 unmatched_buys.append(order[price_col])
             elif order['Action'] == 'Sell' and unmatched_buys:
-                # Match with the oldest unmatched buy
+                #Match with the oldest unmatched buy
                 buy_price = unmatched_buys.pop(0)
+                matched_buy_prices.append(buy_price)
                 sell_price = order[price_col]
                 self.total_profit += sell_price - buy_price
                 matched_buy_count += 1
@@ -66,8 +75,8 @@ class Portfolio:
         
         self.total_profit = round(self.total_profit, 2)
         
-        #Calculate percent gain based on matched buy orders
-        total_buy_value = sum(unmatched_buys) + sum(order_list.loc[order_list['Action'] == 'Buy', price_col][:matched_buy_count])
+        #Calculate percent gain based only on matched buy prices
+        total_buy_value = sum(matched_buy_prices)
         if total_buy_value > 0:
             self.percent_gain = (self.total_profit / total_buy_value) * 100
         else:
