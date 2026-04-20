@@ -37,7 +37,32 @@ class Strategy:
 
         #Return dataframe of orders with Date and Action (Buy/Sell)
         return self.orders
-    
+
+    def compute_nav(self, prices_df, capital=10_000, price_col='Close'):
+        cash = capital
+        shares = 0
+        nav_history = []
+
+        if self.orders.empty:
+            for _, row in prices_df.iterrows():
+                nav_history.append({'Date': row['Date'], 'NAV': cash})
+            return pd.DataFrame(nav_history)
+
+        for _, row in prices_df.iterrows():
+            date_str = str(row['Date'])[:10]
+            matched_orders = self.orders[self.orders['Date'].astype(str).str[:10] == date_str]
+            for _, order in matched_orders.iterrows():
+                if order['Action'] == 'Buy' and cash >= row[price_col]:
+                    shares = cash // row[price_col]
+                    cash -= shares * row[price_col]
+                elif order['Action'] == 'Sell' and shares > 0:
+                    cash += shares * row[price_col]
+                    shares = 0
+            nav = cash + shares * row[price_col]
+            nav_history.append({'Date': row['Date'], 'NAV': nav})
+
+        return pd.DataFrame(nav_history)
+
 class Portfolio:
     def __init__(self):
         self.buy_orders = 0

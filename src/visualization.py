@@ -1,101 +1,86 @@
 import matplotlib.pyplot as plt
 import pandas as pd
-import duckdb
-import backtest
-import json
-import os
 
-#Load configuration
-CONFIG_FILE = "config.json"
-ticker = start_date = end_date = db_path = "UNKNOWN"
 
-config = {}
-if os.path.exists(CONFIG_FILE):
-    with open(CONFIG_FILE, 'r') as f:
-        config = json.load(f)
-        ticker = config.get('ticker', 'UNKNOWN')
-        start_date = config.get('start_date', 'UNKNOWN')
-        end_date = config.get('end_date', 'UNKNOWN')
-        db_path = config.get('database', 'UNKNOWN')
+def compute_buy_and_hold_nav(prices_df, capital=10_000, price_col='Close'):
+    cash = capital
+    shares = 0
+    nav_history = []
 
-#Establish db connection
-conn = duckdb.connect(db_path)
+    if prices_df.empty:
+        return pd.DataFrame(columns=['Date', 'NAV'])
 
-#Query the stored prices table
-query = "SELECT * FROM prices"
-df = pd.read_sql(query, conn)
+    first_price = prices_df.iloc[0][price_col]
+    if first_price > 0:
+        shares = cash // first_price
+        cash -= shares * first_price
 
-print(df.head())
+    for _, row in prices_df.iterrows():
+        nav_value = cash + shares * row[price_col]
+        nav_history.append({'Date': row['Date'], 'NAV': nav_value})
 
-#Detect the price column dynamically
-price_col = 'Close' if 'Close' in df.columns else next((col for col in df.columns if 'Close' in col), 'Close')
+    return pd.DataFrame(nav_history)
 
-#Use the stored Date column for the x-axis if available
-if 'Date' in df.columns:
-    x = pd.to_datetime(df['Date'])
-else:
-    x = pd.to_datetime(df.index)
 
-#Gather dataframe of orders from backtest module, pass the existing connection
-strategy = backtest.Strategy(conn)
-orders = strategy.moving_averages(price_col=price_col)
+def plot_results(prices_df, benchmark_df, orders, portfolio, config, strategy_nav=None, buy_hold_nav=None, benchmark_nav=None, capital=10_000, price_col='Close'):
+    prices_df = prices_df.sort_values('Date').reset_index(drop=True)
+    benchmark_df = benchmark_df.sort_values('Date').reset_index(drop=True)
 
-print(orders)
+    ticker = config.get('ticker', 'UNKNOWN')
+    benchmark_ticker = config.get('benchmark_ticker', 'SPY')
+    start_date = config.get('start_date', 'UNKNOWN')
+    end_date = config.get('end_date', 'UNKNOWN')
 
-#Ensure Date column in orders array is datetime type, and merge with price data for plotting
-orders['Date'] = pd.to_datetime(orders['Date'])
+    if buy_hold_nav is None:
+        buy_hold_nav = compute_buy_and_hold_nav(prices_df, capital=capital, price_col=price_col)
 
-#Deduce buy and sell orders for plotting
-buys  = orders[orders['Action'] == 'Buy']
-sells = orders[orders['Action'] == 'Sell']
+    fig, (ax_price, ax_nav) = plt.subplots(2, 1, figsize=(12, 10), sharex=True, gridspec_kw={'height_ratios': [2, 1]})
+    fig.patch.set_facecolor('black')
 
-#DB connection remains open for reference, closed after Portfolio operations
+    x = pd.to_datetime(prices_df['Date'])
+    ax_price.plot(x, prices_df[price_col], color="#E4E9B8", label=f"{ticker} Price", zorder=1)
 
-#P&L initialization and reporting
-portfolio = backtest.Portfolio()
-portfolio.pnl_calc(orders)
-buy_orders, sell_orders, total_profit, percent_gain = portfolio.show_metrics()
+    if not orders.empty:
+        buys = orders[orders['Action'] == 'Buy']
+        sells = orders[orders['Action'] == 'Sell']
+        ax_price.scatter(pd.to_datetime(buys['Date']), buys['Close'], marker='^', color='green', s=80, label='Buy', zorder=2)
+        ax_price.scatter(pd.to_datetime(sells['Date']), sells['Close'], marker='v', color='red', s=80, label='Sell', zorder=2)
 
-#Plot prices & buy/sell orders
-plt.figure(figsize=(10, 6), facecolor = "black")
-plt.plot(x, df[price_col], color = "#E4E9B8", zorder = 1)
-plt.scatter(buys['Date'], buys['Close'], marker = '^', color = 'green', s = 80, label = 'Buy', zorder = 2)
-plt.scatter(sells['Date'], sells['Close'], marker = 'v', color = 'red', s = 80, label = 'Sell', zorder = 2)
+    if strategy_nav is not None:
+        ax_nav.plot(pd.to_datetime(strategy_nav['Date']), strategy_nav['NAV'], color='#7FDBFF', label='Strategy NAV', linewidth=2)
+    if buy_hold_nav is not None:
+        ax_nav.plot(pd.to_datetime(buy_hold_nav['Date']), buy_hold_nav['NAV'], color='#2ECC40', label='Buy-and-Hold NAV', linewidth=2)
+    if benchmark_nav is not None:
+        ax_nav.plot(pd.to_datetime(benchmark_nav['Date']), benchmark_nav['NAV'], color='#FFDC00', label=f"{benchmark_ticker} Buy-and-Hold NAV", linewidth=2)
 
-#Add PNL dashboard at the bottom
-pnl_text = f'Buy Orders: {buy_orders}\nSell Orders: {sell_orders}\nTotal Profit: ${total_profit:.2f}\nPercent Gain: {percent_gain:.2f}%'
-plt.text(0.02, 0.02, pnl_text, transform=plt.gcf().transFigure, fontsize=10, 
-         verticalalignment='bottom', horizontalalignment='left',
-         bbox=dict(boxstyle='round,pad=0.5', facecolor='black', edgecolor='white', alpha=0.8),
-         color='white', fontname='serif')
+    ax_price.set_facecolor('black')
+    ax_price.set_title(f"Backtested {ticker} Prices from {start_date} to {end_date}", color='white', fontname='serif')
+    ax_price.set_ylabel('Price (USD)', color='white', fontname='serif')
+    ax_price.tick_params(axis='x', colors='white')
+    ax_price.tick_params(axis='y', colors='white')
+    price_legend = ax_price.legend(facecolor='black', framealpha=0.7, edgecolor='white', loc='upper left')
+    for text in price_legend.get_texts():
+        text.set_color('white')
 
-#Labeling and layout styling
-plt.title(f"Backtested {ticker} Prices from {start_date}-{end_date}", color = "white", fontname = "serif")
-plt.xlabel("Date", color = "white", fontname = "serif")
-plt.ylabel("Close Price (USD$)", color = "white", fontname = "serif")
-plt.margins(x = 0)
+    # Add PNL metrics as text in the bottom-right corner of the price chart
+    pnl_text = f'Buy Orders: {portfolio.buy_orders}\nSell Orders: {portfolio.sell_orders}\nTotal Profit: ${portfolio.total_profit:.2f}\nPercent Gain: {portfolio.percent_gain:.2f}%'
+    ax_price.text(0.98, 0.02, pnl_text, transform=ax_price.transAxes, fontsize=10, 
+                  verticalalignment='bottom', horizontalalignment='right',
+                  bbox=dict(boxstyle='round,pad=0.5', facecolor='black', edgecolor='white', alpha=0.8),
+                  color='white', fontname='serif')
 
-#Set y-axis range based on min/max stock prices with padding
-min_price = df[price_col].min()
-max_price = df[price_col].max()
-price_range = max_price - min_price
-padding = price_range * 0.05  # 5% padding
-plt.ylim(min_price - padding, max_price + padding)
+    ax_nav.set_facecolor('black')
+    ax_nav.set_ylabel('NAV (USD)', color='white', fontname='serif')
+    ax_nav.set_xlabel('Date', color='white', fontname='serif')
+    ax_nav.tick_params(axis='x', colors='white')
+    ax_nav.tick_params(axis='y', colors='white')
+    nav_legend = ax_nav.legend(facecolor='black', framealpha=0.7, edgecolor='white')
+    for text in nav_legend.get_texts():
+        text.set_color('white')
 
-plt.xticks(rotation = 45, color = "white", fontname = "serif")
-plt.yticks(color = "white", fontname = "serif")
-plt.rcParams['font.family'] = "serif"
-plt.tight_layout()
+    for ax in (ax_price, ax_nav):
+        for spine in ax.spines.values():
+            spine.set_color('white')
 
-#Axis Coloring
-ax = plt.gca()
-ax.set_facecolor("black")
-for spine in ax.spines.values():
-    spine.set_color('white')
-ax.tick_params(axis = "both", color = "white")
-ax.legend()
-
-#Close database connection
-conn.close()
-
-plt.show()
+    fig.tight_layout()
+    plt.show()
