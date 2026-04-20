@@ -1,12 +1,8 @@
-from matplotlib import ticker
 import yfinance as yf
-import pandas as pd
 import duckdb
 import json
-import os
 from datetime import date
 import sys
-
 
 if __name__ == "__main__":
     #Stock Data Config
@@ -22,15 +18,12 @@ if __name__ == "__main__":
         print("\nInvalid ticker, try again.")
         sys.exit()
 
-    #Handle ipo date later than 2020
+    #Handle IPO date later than 2020
     ipo_date = str(yf.Ticker(TICKER).history(period="max").index[0].date())
     ipo_figs, start_date_figs = ipo_date.split('-'), START_DATE.split('-')
     
     if date(*[int(i) for i in ipo_figs]) > date(*[int(i) for i in start_date_figs]):
         START_DATE = ipo_date
-
-    print(START_DATE)
-
 
     df = yf.download(TICKER, start=START_DATE, end=END_DATE)
 
