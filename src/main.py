@@ -9,7 +9,6 @@ import visualization
 
 CONFIG_FILE = "config.json"
 
-
 def load_config(config_file=CONFIG_FILE):
     if not os.path.exists(config_file):
         raise FileNotFoundError(f"Configuration file not found: {config_file}")
@@ -39,9 +38,9 @@ def main():
     portfolio = backtest.Portfolio()
     portfolio.pnl_calc(orders)
 
-    strategy_nav = strategy.compute_nav(prices_df, capital=10_000, price_col=price_col)
-    buy_hold_nav = visualization.compute_buy_and_hold_nav(prices_df, capital=10_000, price_col=price_col)
-    benchmark_nav = visualization.compute_buy_and_hold_nav(benchmark_df, capital=10_000, price_col='Close')
+    strategy_nav = strategy.compute_nav(prices_df, capital=10000, price_col=price_col)
+    buy_hold_nav = visualization.compute_buy_and_hold_nav(prices_df, capital=10000, price_col=price_col)
+    benchmark_nav = visualization.compute_buy_and_hold_nav(benchmark_df, capital=10000, price_col='Close')
 
     visualization.plot_results(
         prices_df=prices_df,
@@ -52,7 +51,7 @@ def main():
         strategy_nav=strategy_nav,
         buy_hold_nav=buy_hold_nav,
         benchmark_nav=benchmark_nav,
-        capital=10_000,
+        capital=10000,
         price_col=price_col,
     )
 

@@ -1,8 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-
-def compute_buy_and_hold_nav(prices_df, capital=10_000, price_col='Close'):
+def compute_buy_and_hold_nav(prices_df, capital=10000, price_col='Close'):
     cash = capital
     shares = 0
     nav_history = []
@@ -22,7 +21,7 @@ def compute_buy_and_hold_nav(prices_df, capital=10_000, price_col='Close'):
     return pd.DataFrame(nav_history)
 
 
-def plot_results(prices_df, benchmark_df, orders, portfolio, config, strategy_nav=None, buy_hold_nav=None, benchmark_nav=None, capital=10_000, price_col='Close'):
+def plot_results(prices_df, benchmark_df, orders, portfolio, config, strategy_nav=None, buy_hold_nav=None, benchmark_nav=None, capital=10000, price_col='Close'):
     prices_df = prices_df.sort_values('Date').reset_index(drop=True)
     benchmark_df = benchmark_df.sort_values('Date').reset_index(drop=True)
 

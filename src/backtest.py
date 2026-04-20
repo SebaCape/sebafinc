@@ -1,6 +1,5 @@
 import duckdb
 import pandas as pd
-
 class Strategy:
     def __init__(self, db_path_or_conn):
         #Initialize with database connection (accept either path string or existing connection)
@@ -38,7 +37,7 @@ class Strategy:
         #Return dataframe of orders with Date and Action (Buy/Sell)
         return self.orders
 
-    def compute_nav(self, prices_df, capital=10_000, price_col='Close'):
+    def compute_nav(self, prices_df, capital=10000, price_col='Close'):
         cash = capital
         shares = 0
         nav_history = []
