@@ -49,6 +49,7 @@ The system provides a PNL Report in the console and an overlay on the chart incl
 - Percent Gain (Matched pairs only)
 - Strategy NAV vs. SPY Benchmark
 
-## Example Visualization (todo)
+## Example Visualization
+<img width="1888" height="974" alt="image" src="https://github.com/user-attachments/assets/10ec5a29-8bd6-48fa-b97c-d4af29dc6fab" />
 
 MIT License
