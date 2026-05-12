@@ -1,4 +1,4 @@
-# Modular Event-Driven Backtester
+# SebaFinc | Quantitative Backtesting Engine
 
 A high-performance, asynchronous backtesting engine built with Python, DuckDB, and yfinance. This system implements a vectorized moving average crossover strategy, maintains a FIFO-matched P&L tracking system, and visualizes performance against industry benchmarks.
 
