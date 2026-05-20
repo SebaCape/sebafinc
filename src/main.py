@@ -15,7 +15,6 @@ def load_config(config_file=CONFIG_FILE):
     with open(config_file, 'r') as f:
         return json.load(f)
 
-
 def main():
     config = load_config()
     db_path = config.get('database')
@@ -56,7 +55,6 @@ def main():
     )
 
     strategy.close_connection()
-
 
 if __name__ == "__main__":
     main()
