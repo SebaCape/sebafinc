@@ -37,6 +37,59 @@ class Strategy:
         #Return dataframe of orders with Date and Action (Buy/Sell)
         return self.orders
 
+    def bollinger_rsi(self, window=20, num_std=2.0, rsi_period=14, rsi_oversold=35, rsi_overbought=65, price_col='Close'):
+    #Pull price data with Bollinger Band components from DuckDB
+        query = f"""
+            SELECT Date, {price_col},
+                AVG({price_col}) OVER (
+                   ORDER BY Date ROWS BETWEEN {window - 1} PRECEDING AND CURRENT ROW
+                ) AS sma,
+                STDDEV_SAMP({price_col}) OVER (
+                   ORDER BY Date ROWS BETWEEN {window - 1} PRECEDING AND CURRENT ROW
+                ) AS std
+            FROM prices
+        """
+        df = self.conn.execute(query).fetchdf()
+
+        #Bollinger Bands
+        df['upper'] = df['sma'] + num_std * df['std']
+        df['lower'] = df['sma'] - num_std * df['std']
+
+        #RSI — requires gain/loss rolling averages
+        delta = df[price_col].diff()
+        gain  = delta.clip(lower=0)
+        loss  = -delta.clip(upper=0)
+
+        avg_gain = gain.ewm(com=rsi_period - 1, min_periods=rsi_period).mean()
+        avg_loss = loss.ewm(com=rsi_period - 1, min_periods=rsi_period).mean()
+
+        rs = avg_gain / avg_loss.replace(0, float('inf'))
+        df['rsi'] = 100 - (100 / (1 + rs))
+
+        #Signal conditions ensure agreeance of both signals to reduce false positives
+        buy_signal  = (df[price_col] <= df['lower']) & (df['rsi'] < rsi_oversold)
+        sell_signal = (df[price_col] >= df['upper']) & (df['rsi'] > rsi_overbought)
+
+        #Enforce alternating buy/sell — no consecutive buys or sells
+        signals = []
+        last_action = None
+        for i in df.index:
+            if buy_signal[i] and last_action != 'Buy':
+                signals.append('Buy')
+                last_action = 'Buy'
+            elif sell_signal[i] and last_action == 'Buy':
+                signals.append('Sell')
+                last_action = 'Sell'
+            else:
+                signals.append(None)
+        df['signal'] = signals
+
+        buys  = df[df['signal'] == 'Buy'][['Date', price_col]].rename(columns={price_col: 'Close'}).assign(Action='Buy')
+        sells = df[df['signal'] == 'Sell'][['Date', price_col]].rename(columns={price_col: 'Close'}).assign(Action='Sell')
+
+        self.orders = pd.concat([buys, sells]).sort_values('Date').reset_index(drop=True)
+        return self.orders
+
     def compute_nav(self, prices_df, capital=10000, price_col='Close'):
         cash = capital
         shares = 0
