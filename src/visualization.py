@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
+#Compute buy-and-hold NAV for given price data and initial capital
 def compute_buy_and_hold_nav(prices_df, capital=10000, price_col='Close'):
     cash = capital
     shares = 0
@@ -20,7 +21,7 @@ def compute_buy_and_hold_nav(prices_df, capital=10000, price_col='Close'):
 
     return pd.DataFrame(nav_history)
 
-#TODO: Fix legend and PNL markings on plot
+#Generate visualizations of strategy performance vs buy-and-hold and benchmark
 def plot_results(prices_df, benchmark_df, orders, portfolio, config, strategy_nav=None, buy_hold_nav=None, benchmark_nav=None, capital=10000, price_col='Close'):
     prices_df = prices_df.sort_values('Date').reset_index(drop=True)
     benchmark_df = benchmark_df.sort_values('Date').reset_index(drop=True)
@@ -57,15 +58,16 @@ def plot_results(prices_df, benchmark_df, orders, portfolio, config, strategy_na
     ax_price.set_ylabel('Price (USD)', color='white', fontname='serif')
     ax_price.tick_params(axis='x', colors='white')
     ax_price.tick_params(axis='y', colors='white')
-    price_legend = ax_price.legend(facecolor='black', framealpha=0.7, edgecolor='white', loc='upper left')
+    price_legend = ax_price.legend(facecolor='black', framealpha=0.7, edgecolor='white', loc='upper left', bbox_to_anchor=(0.01, 0.99), borderaxespad=0.5, fontsize=9)
+    price_legend.get_frame().set_boxstyle('round', pad=0.4)
     for text in price_legend.get_texts():
         text.set_color('white')
 
-    # Add PNL metrics as text in the bottom-right corner of the price chart
+    #Add PNL metrics as text directly under the legend, with a smaller font and container
     pnl_text = f'Buy Orders: {portfolio.buy_orders}\nSell Orders: {portfolio.sell_orders}\nTotal Profit: ${portfolio.total_profit:.2f}\nPercent Gain: {portfolio.percent_gain:.2f}%'
-    ax_price.text(0.98, 0.02, pnl_text, transform=ax_price.transAxes, fontsize=10, 
-                  verticalalignment='bottom', horizontalalignment='right',
-                  bbox=dict(boxstyle='round,pad=0.5', facecolor='black', edgecolor='white', alpha=0.8),
+    ax_price.text(0.01, 0.80, pnl_text, transform=ax_price.transAxes, fontsize=8,
+                  verticalalignment='top', horizontalalignment='left',
+                  bbox=dict(boxstyle='round', pad=0.35, facecolor='black', edgecolor='white', alpha=0.7),
                   color='white', fontname='serif')
 
     ax_nav.set_facecolor('black')

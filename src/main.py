@@ -35,7 +35,7 @@ def main():
     strategy = backtest.Strategy(conn)
 
     #Strategy selection based on config
-    STRATEGY = config.get('strategy', 'bollinger_rsi')
+    STRATEGY = config.get('strategy', 'bollinger_rsi') #Default strategy held in second function parameter
     if STRATEGY == 'moving_averages':
         orders = strategy.moving_averages(
             short_window=config.get('short_window', 10),
