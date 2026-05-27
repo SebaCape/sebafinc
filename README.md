@@ -1,4 +1,4 @@
-# sebafinc — Quantitative Backtesting Engine
+# sebafinc: Quantitative Backtesting Engine
 
 A modular Python backtesting engine with a multi-source ETL pipeline, DuckDB columnar storage, configurable trading strategies, NAV curve computation, and benchmark-aware visualization. Built as a foundation for live paper trading via Alpaca (in progress).
 
@@ -129,7 +129,7 @@ pytest tests/ -v
 
 ### Bollinger Bands + RSI (`bollinger_rsi`)
 
-Combines two independent signals — a price touches the Bollinger Band boundary AND RSI confirms oversold/overbought conditions. Reduces false positives compared to a single-indicator strategy.
+Combines two independent signals. A price touches the Bollinger Band boundary & RSI confirms oversold/overbought conditions. Reduces false positives compared to a single-indicator strategy.
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -143,7 +143,7 @@ Combines two independent signals — a price touches the Bollinger Band boundary
 
 **Sell signal:** price ≥ upper band AND RSI > `rsi_overbought`
 
-Signals are enforced to alternate — no consecutive buys or sells.
+Signals are enforced to alternate, meaning no consecutive buys or sells.
 
 ### Moving Average Crossover (`moving_averages`)
 
