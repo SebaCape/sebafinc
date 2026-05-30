@@ -1,20 +1,30 @@
+﻿import os
+
 import duckdb
 import pandas as pd
+from dotenv import load_dotenv
+from alpaca.trading.client import TradingClient
+from alpaca.trading.requests import MarketOrderRequest
+from alpaca.trading.enums import OrderSide, TimeInForce
+
+load_dotenv()
+
 class Strategy:
+    #Initialize with database connection, either by path or existing connection object
     def __init__(self, db_path_or_conn):
-        #Initialize with database connection (accept either path string or existing connection)
         if isinstance(db_path_or_conn, str):
             self.conn = duckdb.connect(db_path_or_conn)
         else:
             self.conn = db_path_or_conn
         self.orders = pd.DataFrame()
 
+    #Close database connection when done to free resources
     def close_connection(self):
         self.conn.close()
         print("DB connection closed.")
 
+    #Implement a simple moving average crossover strategy, with buy signals when short-term SMA crosses above long-term SMA, and sell signals when short-term SMA crosses below long-term SMA
     def moving_averages(self, short_window = 10, long_window = 20, price_col = 'Close'):
-        #Calculate short moving average & long moving average with SQL query
         query = f"""
             SELECT Date, {price_col},
                    AVG({price_col}) OVER (ORDER BY Date 
@@ -25,7 +35,6 @@ class Strategy:
         """
         df = self.conn.execute(query).fetchdf()
 
-        #Detect crossover via pandas vectorization, use to populate buy and sell orders
         cross_up   = (df[f'SMA_{short_window}'] > df[f'SMA_{long_window}']) & (df[f'SMA_{short_window}'].shift(1) <= df[f'SMA_{long_window}'].shift(1))
         cross_down = (df[f'SMA_{short_window}'] < df[f'SMA_{long_window}']) & (df[f'SMA_{short_window}'].shift(1) >= df[f'SMA_{long_window}'].shift(1))
     
@@ -33,12 +42,10 @@ class Strategy:
         sells = df[cross_down][['Date', price_col]].rename(columns={price_col: 'Close'}).assign(Action='Sell')
 
         self.orders = pd.concat([buys, sells]).sort_values('Date').reset_index(drop=True)
-
-        #Return dataframe of orders with Date and Action (Buy/Sell)
         return self.orders
 
+    #Implement a combined Bollinger Bands and RSI strategy, with buy signals when price is below lower band and RSI is oversold, and sell signals when price is above upper band and RSI is overbought
     def bollinger_rsi(self, window=20, num_std=2.0, rsi_period=14, rsi_oversold=35, rsi_overbought=65, price_col='Close'):
-    #Pull price data with Bollinger Band components from DuckDB
         query = f"""
             SELECT Date, {price_col},
                 AVG({price_col}) OVER (
@@ -51,11 +58,9 @@ class Strategy:
         """
         df = self.conn.execute(query).fetchdf()
 
-        #Bollinger Bands
         df['upper'] = df['sma'] + num_std * df['std']
         df['lower'] = df['sma'] - num_std * df['std']
 
-        #RSI — requires gain/loss rolling averages
         delta = df[price_col].diff()
         gain  = delta.clip(lower=0)
         loss  = -delta.clip(upper=0)
@@ -66,11 +71,9 @@ class Strategy:
         rs = avg_gain / avg_loss.replace(0, float('inf'))
         df['rsi'] = 100 - (100 / (1 + rs))
 
-        #Signal conditions ensure agreeance of both signals to reduce false positives
         buy_signal  = (df[price_col] <= df['lower']) & (df['rsi'] < rsi_oversold)
         sell_signal = (df[price_col] >= df['upper']) & (df['rsi'] > rsi_overbought)
 
-        #Enforce alternating buy/sell — no consecutive buys or sells
         signals = []
         last_action = None
         for i in df.index:
@@ -89,7 +92,8 @@ class Strategy:
 
         self.orders = pd.concat([buys, sells]).sort_values('Date').reset_index(drop=True)
         return self.orders
-
+    
+    #Compute NAV history based on executed orders and price data, with simple logic to buy as many shares as possible on buy signals and sell all shares on sell signals
     def compute_nav(self, prices_df, capital=10000, price_col='Close'):
         cash = capital
         shares = 0
@@ -122,14 +126,13 @@ class Portfolio:
         self.total_profit = 0.0
         self.percent_gain = 0.0
 
+    #Calculate PNL metrics based on order list and price data, with a simple FIFO matching of buys and sells
     def pnl_calc(self, order_list, price_col='Close'):
-        #Sort orders by date to ensure chronological processing
         order_list = order_list.sort_values('Date').reset_index(drop=True)
         
         self.buy_orders = (order_list['Action'] == 'Buy').sum()
         self.sell_orders = (order_list['Action'] == 'Sell').sum()
         
-        #Track unmatched buy orders and measure profit only on matched buy/sell pairs
         unmatched_buys = []
         matched_buy_prices = []
         self.total_profit = 0.0
@@ -138,10 +141,8 @@ class Portfolio:
         
         for _, order in order_list.iterrows():
             if order['Action'] == 'Buy':
-                #Add buy order to unmatched list
                 unmatched_buys.append(order[price_col])
             elif order['Action'] == 'Sell' and unmatched_buys:
-                #Match with the oldest unmatched buy
                 buy_price = unmatched_buys.pop(0)
                 matched_buy_prices.append(buy_price)
                 sell_price = order[price_col]
@@ -151,18 +152,47 @@ class Portfolio:
         
         self.total_profit = round(self.total_profit, 2)
         
-        #Calculate percent gain based only on matched buy prices
         total_buy_value = sum(matched_buy_prices)
         if total_buy_value > 0:
             self.percent_gain = (self.total_profit / total_buy_value) * 100
         else:
             self.percent_gain = 0.0
         
-        #Update counts to reflect only matched orders for profit calculation
         self.buy_orders = matched_buy_count
         self.sell_orders = matched_sell_count
-
+    #Print PNL metrics in a readable format and return them as a tuple
     def show_metrics(self):
         print("\n----PNL REPORT----")
         print(f"Buy Orders: {self.buy_orders}\nSell Orders: {self.sell_orders}\nTotal Gross Profit: {self.total_profit}\nPercent Gain: {self.percent_gain:.2f}%")
         return (self.buy_orders, self.sell_orders, self.total_profit, self.percent_gain)
+
+class Broker:
+    #Simple wrapper around Alpaca API for paper trading
+    def __init__(self, api_key=None, secret_key=None, paper=True):
+        self.api_key = api_key or os.getenv('ALPACA_API_KEY')
+        self.secret_key = secret_key or os.getenv('ALPACA_SECRET_KEY')
+        if not self.api_key or not self.secret_key:
+            raise ValueError('ALPACA_API_KEY and ALPACA_SECRET_KEY must be set for paper trading')
+        self.client = TradingClient(self.api_key, self.secret_key, paper=paper)
+
+    #Place a market order for the given symbol, quantity, and action (buy/sell)
+    def place_market_order(self, symbol, qty, action):
+        side = OrderSide.BUY if action.lower() == 'buy' else OrderSide.SELL
+        order_request = MarketOrderRequest(
+            symbol=symbol,
+            qty=qty,
+            side=side,
+            time_in_force=TimeInForce.DAY,
+        )
+        return self.client.submit_order(order_request)
+    
+    #Get current buying power of the account
+    def buying_power(self):
+        return float(self.client.get_account().buying_power)
+
+    #Get current position for a symbol, or None if no position exists
+    def get_position(self, symbol):
+        try:
+            return self.client.get_open_position(symbol)
+        except Exception:
+            return None
