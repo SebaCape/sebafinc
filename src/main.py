@@ -110,7 +110,7 @@ def run_paper_trading(config):
         #Check if latest signal is recent enough to act on, with a threshold of 1 day
         latest_signal = orders.sort_values('Date').iloc[-1]
         days_old = (pd.Timestamp('today') - latest_signal['Date']).days
-        if days_old > 1:
+        if days_old > 20:
             print(f"Latest signal is {days_old} days old — no action.")
             return
 

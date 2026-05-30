@@ -36,7 +36,7 @@ def fetch_alpaca(ticker, start_date, end_date):
     else:
         df = df.reset_index().rename(columns={'timestamp': 'Date'})
 
-    df['Date'] = pd.to_datetime(df['Date']).dt.normalize()
+    df['Date'] = pd.to_datetime(df['Date']).dt.normalize().dt.tz_localize(None)
     df = df.rename(columns={
         'open': 'Open',
         'high': 'High',
