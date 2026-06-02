@@ -7,7 +7,7 @@ import pandas as pd
 import backtest
 import visualization
 
-CONFIG_FILE = "config.json"
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
 
 #Load configuration from JSON file, with error handling for missing file or invalid format
 def load_config(config_file=CONFIG_FILE):

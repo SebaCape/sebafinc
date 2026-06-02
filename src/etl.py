@@ -55,7 +55,7 @@ if __name__ == "__main__":
     BENCHMARK_TICKER = "SPY"
     END_DATE         = str(date.today())
     DB_PATH          = "market.db"
-    CONFIG_FILE      = "config.json"
+    CONFIG_FILE      = os.path.join(os.path.dirname(__file__), "config.json")
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--auto', action='store_true', help='Read ticker from config.json instead of prompting')
