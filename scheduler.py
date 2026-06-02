@@ -4,9 +4,12 @@ import sys
 import subprocess
 from datetime import datetime
 import zoneinfo
+import os
 
 #Ensures scheduler is ran from the virtual environment to prevent import errors
 PYTHON = sys.executable 
+#Allows scheduler to find config file without error
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 #Check if current time is within US stock market hours (9:30am-4pm ET, Mon-Fri)
 def is_market_open():
@@ -23,8 +26,8 @@ def run_strategy():
         print("Market closed — skipping")
         return
     print(f"Running strategy at {datetime.now()}")
-    subprocess.run([PYTHON, "src/etl.py", "--auto"])
-    subprocess.run([PYTHON, "src/main.py"])
+    subprocess.run([PYTHON, "src/etl.py", "--auto"], cwd=PROJECT_ROOT)
+    subprocess.run([PYTHON, "src/main.py"], cwd=PROJECT_ROOT)
 
 schedule.every(1).hours.do(run_strategy)
 
